@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Slim & Tone v37.30 (Syntax Fix)</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Slim Pro">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2554/2554042.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'Noto Sans TC', 'sans-serif'] },
+                    colors: { glass: "rgba(255, 255, 255, 0.7)", primary: "#ec4899" },
+                    animation: { 'fade-in': 'fadeIn 0.4s ease-out' },
+                    keyframes: {
+                        fadeIn: { "0%": { opacity: "0", transform: "translateY(10px)" }, "100%": { opacity: "1", transform: "translateY(0)" } }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #f0f2f5; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .glass-panel { background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.3); }
+        .timeline-node { position: absolute; left: -21px; top: 2px; width: 14px; height: 14px; border-radius: 50%; border: 3px solid white; transition: all 0.3s ease; }
+        .timeline-node.active { background-color: #ec4899; box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.2); }
+        .timeline-node.inactive { background-color: #cbd5e1; }
+        .phase-card { cursor: pointer; overflow: hidden; transition: all 0.3s ease; }
+        .phase-details { max-height: 0; opacity: 0; overflow: hidden; transition: all 0.4s ease-in-out; }
+        .phase-card.active .phase-details { max-height: 500px; opacity: 1; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.05); }
+        .nav-active { color: #ec4899; position: relative; }
+        .nav-active::after { content: ''; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; background: #ec4899; border-radius: 50%; }
+        .filter-active { @apply bg-white text-rose-500 shadow-sm ring-1 ring-rose-100; }
+        .filter-inactive { @apply text-slate-400 hover:text-slate-600; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 999; display: flex; justify-content: center; items-center: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+        .modal-content { background: white; width: 90%; max-width: 320px; border-radius: 24px; padding: 20px; transform: scale(0.9); transition: transform 0.3s; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); margin: auto;}
+        .modal-overlay.open .modal-content { transform: scale(1); }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800 relative">
+
+    <!-- Header -->
+    <div class="glass-header pt-safe pb-2 px-4 z-50 flex-none">
+        <div class="flex justify-between items-start">
+            <div class="flex-grow">
+                <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-rose-500 to-purple-600 mb-0.5" id="header-title" data-key="home_title">Welcome Back</h1>
+                <div class="flex items-center justify-between pr-2 h-8">
+                    <p class="text-[10px] text-slate-400 font-medium tracking-wide"><span data-key="label_target">Target</span>: <span id="header-target-val">--</span></p>
+                    <div class="hidden" id="header-date-indicator"><span id="header-date-val" class="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">--</span></div>
+                </div>
+            </div>
+            <div class="flex space-x-2 flex-none mt-1">
+                <button onclick="toggleLanguage()" class="w-9 h-9 rounded-full bg-slate-100/50 hover:bg-white border border-white/50 shadow-sm flex items-center justify-center text-slate-600 transition active:scale-90"><i class="fas fa-language"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timer Overlay -->
+    <div id="timer-overlay" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] hidden transition-all duration-300">
+        <div class="bg-slate-800 text-white px-4 py-2 rounded-full shadow-xl flex items-center space-x-3 border border-slate-600 transition-colors duration-300">
+            <i class="fas fa-stopwatch text-rose-400 animate-pulse"></i>
+            <span id="timer-display" class="font-mono text-lg font-bold">00:00</span>
+            <button onclick="stopTimer()" class="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30 uppercase font-bold">Stop</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-grow overflow-y-auto pb-32 px-5 pt-4 scroll-smooth" id="main-container">
+
+        <!-- TAB 0: HOME -->
+        <div id="content-home" class="space-y-6 animate-fade-in pb-4">
+            <div id="phase-card-container" class="glass-panel p-5 rounded-3xl border-l-4 border-purple-400 bg-white/60 phase-card" onclick="togglePhaseDetails()"></div>
+            
+            <div class="glass-panel p-6 rounded-3xl relative overflow-hidden">
+                <div class="absolute -right-6 -top-6 w-32 h-32 bg-gradient-to-br from-rose-100 to-purple-100 rounded-full blur-2xl opacity-60"></div>
+                <div class="flex justify-between items-start relative z-10">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider" data-key="home_today_status">Today's Balance</h2>
+                        <p class="text-[10px] text-rose-400 font-bold mb-2" id="home-date-display">--</p>
+                        <div class="mt-1"><span class="text-4xl font-black text-slate-800 tracking-tight" id="home-kcal-val">0</span><span class="text-sm text-slate-400 font-medium"> / <span id="home-goal-val">--</span></span></div>
+                        <div class="flex items-center mt-2 space-x-3">
+                            <div class="px-2 py-1 rounded-lg bg-rose-50 flex items-center space-x-1"><div class="w-1.5 h-1.5 rounded-full bg-rose-500"></div><span class="text-[10px] font-bold text-rose-600 uppercase" data-key="home_intake">In</span></div>
+                            <div class="px-2 py-1 rounded-lg bg-blue-50 flex items-center space-x-1"><div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div><span class="text-[10px] font-bold text-blue-600 uppercase" data-key="home_burned">Out</span><span class="text-[10px] text-blue-600 font-bold" id="home-burn-val">0</span></div>
+                        </div>
+                    </div>
+                    <div class="relative w-20 h-20 flex items-center justify-center">
+                        <svg class="w-full h-full transform -rotate-90"><circle cx="40" cy="40" r="36" stroke="#f1f5f9" stroke-width="8" fill="transparent" /><circle id="circle-progress" cx="40" cy="40" r="36" stroke="#ec4899" stroke-width="8" fill="transparent" stroke-dasharray="226" stroke-dashoffset="226" stroke-linecap="round" class="transition-all duration-1000" /></svg>
+                        <div class="absolute text-xs font-bold text-rose-500" id="circle-text">0%</div>
+                    </div>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-4 text-center border-t border-slate-100 pt-2" id="home-remaining-text">--</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="switchTab('diet')" class="glass-panel p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-white transition active:scale-95 group"><div class="w-12 h-12 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 text-orange-500 flex items-center justify-center shadow-sm group-hover:shadow-md transition"><i class="fas fa-utensils text-lg"></i></div><span class="text-xs font-bold text-slate-600" data-key="action_log_food">Log Food</span></button>
+                <button onclick="switchTab('workout')" class="glass-panel p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-white transition active:scale-95 group"><div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-cyan-100 text-blue-500 flex items-center justify-center shadow-sm group-hover:shadow-md transition"><i class="fas fa-dumbbell text-lg"></i></div><span class="text-xs font-bold text-slate-600" data-key="action_start_workout">Start Workout</span></button>
+            </div>
+            
+            <div class="glass-panel p-5 rounded-2xl">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-2"><h3 class="text-sm font-bold text-slate-700" data-key="home_latest_stats">Body Stats</h3><span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full" data-key="label_latest">Latest</span></div>
+                <div class="grid grid-cols-2 gap-8">
+                    <div class="text-center"><p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1" data-key="label_waist">Waist</p><p class="text-2xl font-black text-slate-800"><span id="home-waist-val">--</span> <span class="text-xs font-normal text-slate-400">cm</span></p></div>
+                    <div class="text-center border-l border-slate-100"><p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1" data-key="label_thigh">Thigh</p><p class="text-2xl font-black text-slate-800"><span id="home-thigh-val">--</span> <span class="text-xs font-normal text-slate-400">cm</span></p></div>
+                </div>
+            </div>
+            
+            <div class="glass-panel p-6 rounded-3xl bg-white/50 relative overflow-hidden">
+                <h3 class="text-sm font-bold text-slate-800 mb-5 flex items-center"><i class="fas fa-map-marked-alt text-purple-500 mr-2"></i> <span data-key="roadmap_title">Transformation Plan</span></h3>
+                <div class="relative pl-5 border-l-2 border-slate-200 space-y-8 ml-2" id="roadmap-container">
+                    <div class="relative" id="timeline-p1"><div class="timeline-node inactive" id="node-p1"></div><div class="flex justify-between items-start"><div><p class="text-xs font-bold text-slate-700" data-key="phase_1_title">Phase 1: Detox</p><p class="text-[10px] text-slate-500 mt-0.5 w-4/5" data-key="phase_1_desc_short">Low sodium diet, Zone 2 cardio.</p></div><span class="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded" id="date-p1">--</span></div></div>
+                    <div class="relative" id="timeline-p2"><div class="timeline-node inactive" id="node-p2"></div><div class="flex justify-between items-start"><div><p class="text-xs font-bold text-slate-700" data-key="phase_2_title">Phase 2: Sculpt</p><p class="text-[10px] text-slate-500 mt-0.5 w-4/5" data-key="phase_2_desc_short">Carb cycling, heavy glutes.</p></div><span class="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded" id="date-p2">--</span></div></div>
+                    <div class="relative" id="timeline-p3"><div class="timeline-node inactive" id="node-p3"></div><div class="flex justify-between items-start"><div><p class="text-xs font-bold text-slate-700" data-key="phase_3_title">Phase 3: Final</p><p class="text-[10px] text-slate-500 mt-0.5 w-4/5" data-key="phase_3_desc_short">Calorie deficit push.</p></div><span class="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded" id="date-p3">--</span></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 1: DIET -->
+        <div id="content-diet" class="space-y-5 animate-fade-in hidden pb-4">
+            <div class="flex items-center justify-between bg-white/60 p-2 rounded-2xl mb-2 shadow-sm border border-white/60 backdrop-blur-sm">
+                <button onclick="changeDate(-1)" class="w-12 h-12 flex items-center justify-center bg-white text-rose-500 rounded-xl shadow-sm active:scale-95 transition hover:bg-rose-50"><i class="fas fa-chevron-left text-lg"></i></button>
+                <div class="text-center flex-1">
+                    <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5" data-key="label_logging_for">Logging For</p>
+                    <p id="diet-date-display" class="text-lg font-black text-slate-700 leading-none">Today</p>
+                </div>
+                <button onclick="changeDate(1)" class="w-12 h-12 flex items-center justify-center bg-white text-rose-500 rounded-xl shadow-sm active:scale-95 transition hover:bg-rose-50"><i class="fas fa-chevron-right text-lg"></i></button>
+            </div>
+
+            <div class="glass-panel p-5 rounded-3xl relative overflow-hidden">
+                <div class="flex justify-between items-end mb-3"><div><p class="text-xs text-slate-400 font-bold uppercase" data-key="diet_card_title">Calories</p><div class="flex items-baseline mt-1"><h2 class="text-3xl font-black text-slate-800" id="display-total">0</h2><span class="text-xs text-slate-400 ml-1 font-bold">/ <span id="diet-goal-val">1350</span></span></div></div><span id="status-badge" class="px-3 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 shadow-sm">Start</span></div><div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div id="progress-bar" class="h-full bg-gradient-to-r from-rose-400 to-purple-500 rounded-full transition-all duration-700" style="width: 0%"></div></div><p class="text-[10px] text-right text-slate-400 mt-2" id="remaining-text">--</p>
+            </div>
+            
+            <div class="glass-panel p-4 rounded-2xl">
+                <div class="flex items-center justify-between mb-3"><h3 class="text-sm font-bold text-slate-700 flex items-center"><i class="fas fa-plus-circle text-rose-500 mr-2"></i> <span data-key="diet_record_title">Add Food</span></h3><button onclick="smartSearch()" class="text-[10px] bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 transition shadow-sm"><i class="fas fa-robot mr-1"></i> <span data-key="btn_search">Smart Search</span></button></div>
+                <div class="flex gap-2">
+                    <div class="flex-grow flex gap-2">
+                        <input type="text" id="input-name" class="flex-grow bg-white/50 border border-white rounded-xl px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-rose-200 transition" placeholder="...">
+                        <input type="number" id="input-gram" class="w-16 bg-white/50 border border-white rounded-xl px-2 py-3 text-sm outline-none focus:ring-2 focus:ring-rose-200 transition text-center" placeholder="g">
+                    </div>
+                    <input type="number" id="input-kcal" class="w-16 bg-white/50 border border-white rounded-xl px-2 py-3 text-sm outline-none focus:ring-2 focus:ring-rose-200 transition text-center" placeholder="Kcal">
+                    <button onclick="addManualFood()" class="w-12 bg-slate-800 text-white rounded-xl flex items-center justify-center shadow-lg hover:bg-slate-700 active:scale-95 transition"><i class="fas fa-arrow-right"></i></button>
+                </div>
+            </div>
+            
+            <!-- QUICK ADD -->
+            <div>
+                <div class="flex justify-between items-center mb-2 ml-1">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wide" data-key="diet_quick_add">Quick Add</h3>
+                    <button onclick="toggleQuickAddEdit()" id="btn-qa-edit" class="text-[10px] text-rose-400 font-bold px-2 py-1 bg-rose-50 rounded-lg hover:bg-rose-100 transition" data-key="btn_edit">Edit</button>
+                </div>
+                <div class="flex overflow-x-auto gap-2 pb-2 no-scrollbar">
+                    <button onclick="filterFood('all')" class="px-3 py-1.5 bg-white rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap active:scale-95 transition" data-key="filter_all">All</button>
+                    <button onclick="filterFood('breakfast')" class="px-3 py-1.5 bg-white rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap active:scale-95 transition" data-key="filter_breakfast">Breakfast</button>
+                    <button onclick="filterFood('lunch')" class="px-3 py-1.5 bg-white rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap active:scale-95 transition" data-key="filter_lunch">Lunch</button>
+                    <button onclick="filterFood('dinner')" class="px-3 py-1.5 bg-white rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap active:scale-95 transition" data-key="filter_dinner">Dinner</button>
+                </div>
+                <div id="quick-food-grid" class="grid grid-cols-2 gap-3 mt-2"></div>
+                <div id="qa-add-form" class="hidden mt-3 glass-panel p-3 rounded-xl border border-rose-200">
+                    <p class="text-[10px] font-bold text-slate-400 mb-2">Add New Quick Item</p>
+                    <input type="text" id="new-qa-name" placeholder="Name" class="w-full mb-2 text-xs p-2 rounded border border-slate-200">
+                    <div class="flex gap-2 mb-2">
+                        <input type="number" id="new-qa-kcal" placeholder="Kcal" class="w-1/2 text-xs p-2 rounded border border-slate-200">
+                        <select id="new-qa-type" class="w-1/2 text-xs p-2 rounded border border-slate-200 bg-white">
+                            <option value="breakfast">Breakfast</option>
+                            <option value="lunch">Lunch</option>
+                            <option value="dinner">Dinner</option>
+                            <option value="all">Snack/All</option>
+                        </select>
+                    </div>
+                    <button onclick="addNewQuickFood()" class="w-full bg-rose-500 text-white text-xs font-bold py-2 rounded-lg">Save Item</button>
+                </div>
+            </div>
+
+            <div class="glass-panel p-5 rounded-2xl flex gap-4 border border-slate-200 bg-white/80"><div class="flex-1"><label class="text-xs font-black text-slate-700 uppercase block mb-1" data-key="label_waist">Waist</label><div class="flex items-center bg-white rounded-xl px-3 py-2 border-2 border-slate-200 focus-within:border-rose-400 transition"><input type="number" id="input-waist" step="0.1" onchange="saveBodyStats()" class="bg-transparent w-full text-lg font-bold text-slate-800 outline-none placeholder-slate-300" placeholder="--"><span class="text-xs font-bold text-slate-400 ml-1">cm</span></div></div><div class="flex-1"><label class="text-xs font-black text-slate-700 uppercase block mb-1" data-key="label_thigh">Thigh</label><div class="flex items-center bg-white rounded-xl px-3 py-2 border-2 border-slate-200 focus-within:border-blue-400 transition"><input type="number" id="input-thigh" step="0.1" onchange="saveBodyStats()" class="bg-transparent w-full text-lg font-bold text-slate-800 outline-none placeholder-slate-300" placeholder="--"><span class="text-xs font-bold text-slate-400 ml-1">cm</span></div></div></div>
+            <div class="pb-6"><h3 class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 ml-1" data-key="diet_todays_log">History</h3><div id="food-log-list" class="space-y-2"></div></div>
+        </div>
+
+        <!-- TAB 2: WORKOUT -->
+        <div id="content-workout" class="space-y-5 animate-fade-in hidden pb-4">
+            <div class="flex items-center justify-between bg-white/60 p-2 rounded-2xl mb-2 shadow-sm border border-white/60 backdrop-blur-sm">
+                <button onclick="changeDate(-1)" class="w-12 h-12 flex items-center justify-center bg-white text-rose-500 rounded-xl shadow-sm active:scale-95 transition hover:bg-rose-50"><i class="fas fa-chevron-left text-lg"></i></button>
+                <div class="text-center flex-1">
+                    <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5" data-key="label_logging_for">Logging For</p>
+                    <p id="workout-date-display" class="text-lg font-black text-slate-700 leading-none">Today</p>
+                </div>
+                <button onclick="changeDate(1)" class="w-12 h-12 flex items-center justify-center bg-white text-rose-500 rounded-xl shadow-sm active:scale-95 transition hover:bg-rose-50"><i class="fas fa-chevron-right text-lg"></i></button>
+            </div>
+
+            <div class="flex justify-between items-center">
+                <div class="bg-white/50 p-1 rounded-xl flex text-center relative shadow-sm border border-white/50 flex-grow mr-3"><button onclick="toggleWorkoutView('log')" id="btn-view-log" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all btn-active shadow-sm" data-key="tab_smart_log">Log</button><button onclick="toggleWorkoutView('guide')" id="btn-view-guide" class="flex-1 py-2 rounded-lg text-xs font-medium text-slate-500 transition-all hover:bg-white/50" data-key="tab_guide">Guide</button></div>
+                <button onclick="openTimerModal()" class="w-10 h-10 rounded-xl bg-white text-rose-500 shadow-sm flex items-center justify-center hover:bg-rose-50 transition border border-rose-100"><i class="fas fa-bell"></i></button>
+            </div>
+            
+            <div id="view-workout-log" class="space-y-4">
+                <div class="glass-panel p-5 rounded-3xl border-l-4 border-purple-400">
+                    <div class="flex items-center justify-between mb-3"><h3 class="text-sm font-bold text-slate-700 flex items-center"><i class="fas fa-dumbbell text-purple-400 mr-2"></i> <span data-key="strength_title">Strength</span></h3><div class="flex items-center bg-purple-50 px-2 py-1 rounded-lg"><input type="number" id="input-strength-kcal" oninput="calcWorkoutKcal()" class="w-20 bg-transparent text-right text-xs font-bold text-purple-600 outline-none" value="0"><span class="text-[10px] text-purple-400 ml-1">kcal</span></div></div>
+                    <div class="flex gap-2 mb-3">
+                        <select id="select-workout-day" onchange="loadWorkoutTemplate()" class="flex-grow bg-white/50 border border-white rounded-xl px-3 py-3 text-sm text-slate-700 font-medium outline-none focus:ring-2 focus:ring-purple-200">
+                            <option value="" data-key="select_routine">Select Routine</option>
+                            <!-- Options populate via JS -->
+                        </select>
+                        <button onclick="saveCurrentRoutine()" class="px-3 bg-purple-50 text-purple-500 rounded-xl text-xs font-bold hover:bg-purple-100"><i class="fas fa-save"></i></button>
+                    </div>
+                    <div id="exercise-list-container" class="space-y-2 mb-3"></div>
+                    <button onclick="showAddExerciseModal()" class="w-full py-3 border border-dashed border-slate-300 rounded-xl text-xs font-bold text-slate-400 hover:bg-white/50 hover:border-slate-400 transition"><i class="fas fa-plus mr-1"></i> <span data-key="btn_add_exercise">Add Move</span></button>
+                </div>
+                <div class="glass-panel p-5 rounded-3xl border-l-4 border-blue-400"><div class="flex items-center justify-between mb-3"><h3 class="text-sm font-bold text-slate-700 flex items-center"><i class="fas fa-heartbeat text-blue-400 mr-2"></i> <span data-key="cardio_title">Cardio</span></h3><div class="flex items-center gap-2"><span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md font-bold" id="cardio-kcal-display">Est: 0 kcal</span><span class="text-[10px] bg-blue-50 text-blue-500 px-2 py-0.5 rounded-md font-bold" id="zone-badge">Zone --</span></div></div><div class="mb-3"><label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase" data-key="label_reaction">Reaction</label><select id="input-cardio-feeling" onchange="calcWorkoutKcal()" class="w-full bg-white/50 border border-white rounded-xl px-3 py-2.5 text-sm text-slate-700 font-medium outline-none focus:ring-2 focus:ring-blue-200"><option value="" data-key="select_feeling">-- Select Feeling --</option><option value="rpe_1" data-key="feeling_1">Zone 1 (Very Easy)</option><option value="rpe_2" data-key="feeling_2">Zone 2 (Breathing Nose)</option><option value="rpe_3" data-key="feeling_3">Zone 3 (Short Talk)</option><option value="rpe_4" data-key="feeling_4">Zone 4 (Panting)</option><option value="rpe_5" data-key="feeling_5">Zone 5 (Max)</option></select></div><div class="flex gap-3"><div class="flex-1 relative"><input type="number" id="input-cardio-min" oninput="calcWorkoutKcal()" class="w-full bg-white/50 border border-white rounded-xl px-3 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-200" placeholder="0"><span class="absolute right-3 top-3.5 text-[10px] text-slate-400 font-bold uppercase" data-key="label_mins">min</span></div><div class="flex-1 relative"><input type="number" id="input-cardio-hr" oninput="calcWorkoutKcal()" class="w-full bg-white/50 border border-white rounded-xl px-3 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-200" placeholder="--"><span class="absolute right-3 top-3.5 text-[10px] text-slate-400 font-bold uppercase">bpm</span></div></div><div id="hr-feedback" class="mt-2 text-[10px] font-medium text-right h-3"></div></div>
+                <label class="glass-panel p-4 rounded-2xl flex items-center cursor-pointer active:scale-95 transition"><input type="checkbox" id="check-foam-roll" onchange="saveWorkoutData()" class="w-5 h-5 text-purple-500 rounded focus:ring-purple-500 border-gray-300 mr-3"><span class="text-sm font-bold text-slate-600"><span data-key="label_foam_roll">Foam Rolling</span> <span class="text-purple-400 text-xs ml-1" data-key="label_important">(Must!)</span></span></label>
+            </div>
+            <div id="view-workout-guide" class="space-y-4 hidden">
+                <div class="glass-panel p-5 rounded-3xl" id="guide-container"></div>
+            </div>
+        </div>
+
+        <!-- TAB 3: ANALYSIS & DATA -->
+        <div id="content-analysis" class="space-y-5 animate-fade-in hidden pb-10">
+            <div class="flex justify-center bg-white/50 p-1 rounded-full w-fit mx-auto backdrop-blur-sm mt-2">
+                <button onclick="setChartFilter('daily')" id="filter-daily" class="px-3 py-1.5 text-[10px] font-bold rounded-full transition-all filter-active" data-key="filter_daily">Daily</button>
+                <button onclick="setChartFilter('weekly')" id="filter-weekly" class="px-3 py-1.5 text-[10px] font-bold rounded-full transition-all filter-inactive" data-key="filter_weekly">Weekly</button>
+                <button onclick="setChartFilter('monthly')" id="filter-monthly" class="px-3 py-1.5 text-[10px] font-bold rounded-full transition-all filter-inactive" data-key="filter_monthly">Monthly</button>
+                <button onclick="setChartFilter('yearly')" id="filter-yearly" class="px-3 py-1.5 text-[10px] font-bold rounded-full transition-all filter-inactive" data-key="filter_yearly">Yearly</button>
+            </div>
+            <div class="flex justify-between items-center px-6">
+                <button onclick="changeChartDate(-1)" class="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center text-slate-500 hover:text-rose-500"><i class="fas fa-chevron-left"></i></button>
+                <div class="relative">
+                    <select id="chart-date-select" onchange="jumpToDate(this.value)" class="bg-transparent font-bold text-slate-600 text-xs outline-none text-center appearance-none pr-4"></select>
+                    <i class="fas fa-caret-down absolute right-0 top-1/2 transform -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
+                </div>
+                <button onclick="changeChartDate(1)" class="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center text-slate-500 hover:text-rose-500"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="glass-panel p-5 rounded-3xl"><h3 class="text-sm font-bold text-slate-700 mb-4 flex items-center"><i class="fas fa-fire-alt text-orange-400 mr-2"></i> <span data-key="analysis_balance">Energy Balance</span></h3><canvas id="kcalChart" height="220"></canvas></div>
+            <div class="grid grid-cols-2 gap-4"><div class="glass-panel p-4 rounded-3xl"><h3 class="font-bold text-slate-600 text-xs mb-3 text-center" data-key="analysis_waist">Waist Trend</h3><canvas id="waistChart" height="150"></canvas></div><div class="glass-panel p-4 rounded-3xl"><h3 class="font-bold text-slate-600 text-xs mb-3 text-center" data-key="analysis_thigh">Thigh Trend</h3><canvas id="thighChart" height="150"></canvas></div></div>
+            
+            <div class="glass-panel p-5 rounded-3xl border border-slate-200">
+                <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center"><i class="fas fa-database text-slate-400 mr-2"></i> Backup & Restore</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="copyFullBackup()" class="bg-slate-800 text-white py-2 rounded-xl text-xs font-bold shadow-lg hover:bg-slate-700 active:scale-95 transition">Copy Data</button>
+                    <button onclick="openRestoreModal()" class="bg-white border border-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 active:scale-95 transition">Restore Data</button>
+                </div>
+            </div>
+            <button id="export-btn" onclick="exportToExcel()" class="w-full bg-emerald-50 text-emerald-600 border border-emerald-100 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2"><i class="fas fa-file-excel"></i> Export Excel</button>
+        </div>
+
+        <!-- TAB 4: SETTINGS -->
+        <div id="content-settings" class="space-y-5 animate-fade-in hidden pb-4">
+            <h2 class="text-lg font-bold text-slate-800 px-2" data-key="settings_title">Goal Settings</h2>
+            <div class="glass-panel p-5 rounded-3xl space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">Daily Calorie Goal</label>
+                    <input type="number" id="set-goal-kcal" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 mt-1" onchange="saveSettings()">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">Target Waist (cm)</label>
+                    <input type="number" id="set-goal-waist" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 mt-1" onchange="saveSettings()">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">Target Thigh (cm)</label>
+                    <input type="number" id="set-goal-thigh" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 mt-1" onchange="saveSettings()">
+                </div>
+                <button onclick="saveSettings()" class="w-full bg-rose-500 text-white py-3 rounded-xl font-bold shadow-lg mt-2">Save Goals</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-[95%] max-w-md">
+        <div class="glass-panel rounded-2xl shadow-2xl shadow-slate-400/20 px-4 py-3 flex justify-between items-center">
+            <button onclick="switchTab('home')" id="tab-home" class="nav-item nav-active flex flex-col items-center w-12 transition-all"><i class="fas fa-home text-lg mb-0.5"></i><span class="text-[9px]" data-key="nav_home">Home</span></button>
+            <button onclick="switchTab('diet')" id="tab-diet" class="nav-item text-slate-400 flex flex-col items-center w-12 transition-all"><i class="fas fa-utensils text-lg mb-0.5"></i><span class="text-[9px]" data-key="nav_diet">Diet</span></button>
+            <button onclick="switchTab('workout')" id="tab-workout" class="nav-item text-slate-400 flex flex-col items-center w-12 transition-all"><i class="fas fa-dumbbell text-lg mb-0.5"></i><span class="text-[9px]" data-key="nav_gym">Gym</span></button>
+            <button onclick="switchTab('analysis')" id="tab-analysis" class="nav-item text-slate-400 flex flex-col items-center w-12 transition-all"><i class="fas fa-chart-pie text-lg mb-0.5"></i><span class="text-[9px]" data-key="nav_analysis">Analysis</span></button>
+            <button onclick="switchTab('settings')" id="tab-settings" class="nav-item text-slate-400 flex flex-col items-center w-12 transition-all"><i class="fas fa-cog text-lg mb-0.5"></i><span class="text-[9px]" data-key="nav_settings">Settings</span></button>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="restore-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="text-sm font-bold mb-2">Paste Backup Data</h3>
+            <textarea id="restore-input" class="w-full h-32 border border-slate-200 rounded-xl p-2 text-xs mb-3"></textarea>
+            <div class="flex gap-2">
+                <button onclick="closeModal('restore-modal')" class="flex-1 py-2 text-xs text-slate-500 font-bold">Cancel</button>
+                <button onclick="performRestore()" class="flex-1 py-2 bg-rose-500 text-white rounded-lg text-xs font-bold">Restore</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="add-exercise-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="text-sm font-bold mb-2">Add Manual Exercise</h3>
+            <input type="text" id="manual-ex-name" placeholder="Exercise Name" class="w-full mb-2 p-2 border rounded-lg text-xs">
+            <div class="flex gap-2 mb-3">
+                <input type="number" id="manual-ex-sets" placeholder="Sets" class="w-1/2 p-2 border rounded-lg text-xs">
+                <input type="number" id="manual-ex-reps" placeholder="Reps" class="w-1/2 p-2 border rounded-lg text-xs">
+            </div>
+            <div class="flex gap-2">
+                <button onclick="closeModal('add-exercise-modal')" class="flex-1 py-2 text-xs text-slate-500 font-bold">Cancel</button>
+                <button onclick="addManualExercise()" class="flex-1 py-2 bg-purple-500 text-white rounded-lg text-xs font-bold">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Define ALL functions before they are used/called to prevent reference errors
+        function updateTimerDisplay() {}
+        function openRestoreModal() { document.getElementById('restore-modal').classList.add('open'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+        // --- CHART FUNCTIONS (Hoisted) ---
+        function updateChartHeader() {
+            const sel = document.getElementById('chart-date-select');
+            if(!sel) return;
+            sel.innerHTML = "";
+            let opts = [];
+            
+            const now = new Date();
+            if (currentChartFilter === 'daily') {
+                for(let i=0; i<30; i++) {
+                    let d = new Date(); d.setDate(now.getDate() - i);
+                    opts.push({ val: i*-1, txt: formatDate(d) });
+                }
+            } else if (currentChartFilter === 'weekly') {
+                for(let i=0; i<20; i++) {
+                    let d = new Date(); d.setDate(now.getDate() - (i*7));
+                    const ws = new Date(d); ws.setDate(ws.getDate() - 6);
+                    opts.push({ val: i*-1, txt: `${formatDate(ws).substring(5)} - ${formatDate(d).substring(5)}` });
+                }
+            } else if (currentChartFilter === 'monthly') {
+                for(let i=0; i<12; i++) {
+                    let d = new Date(); d.setMonth(now.getMonth() - i);
+                    opts.push({ val: i*-1, txt: d.toLocaleString('default',{month:'long', year:'numeric'}) });
+                }
+            } else {
+                opts.push({val:0, txt: now.getFullYear()});
+                opts.push({val:-1, txt: now.getFullYear()-1});
+            }
+            
+            opts.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.val;
+                opt.text = o.txt;
+                sel.add(opt);
+            });
+        }
+
+        function jumpToDate(val) {
+            const offset = parseInt(val);
+            const now = new Date();
+            if (currentChartFilter === 'daily') {
+                chartDate = new Date(); chartDate.setDate(now.getDate() + offset);
+            } else if (currentChartFilter === 'weekly') {
+                chartDate = new Date(); chartDate.setDate(now.getDate() + (offset*7));
+            } else if (currentChartFilter === 'monthly') {
+                chartDate = new Date(); chartDate.setMonth(now.getMonth() + offset);
+                chartDate.setMonth(chartDate.getMonth()+1); chartDate.setDate(0);
+            } else {
+                chartDate = new Date(); chartDate.setFullYear(now.getFullYear() + offset);
+            }
+            renderCharts();
+        }
+
+        function setChartFilter(filter) {
+            currentChartFilter = filter;
+            document.querySelectorAll('[id^="filter-"]').forEach(b => b.classList.replace('filter-active', 'filter-inactive'));
+            document.getElementById(`filter-${filter}`).classList.replace('filter-inactive', 'filter-active');
+            updateChartHeader();
+            renderCharts();
+        }
+        
+        function changeChartDate(offset) {
+            if (currentChartFilter === 'daily') {
+                 chartDate.setDate(chartDate.getDate() + (offset * 7));
+            } else if (currentChartFilter === 'weekly') {
+                 chartDate.setDate(chartDate.getDate() + (offset * 28)); 
+            } else if (currentChartFilter === 'monthly') {
+                 chartDate.setMonth(chartDate.getMonth() + (offset * 6)); 
+            } else if (currentChartFilter === 'yearly') {
+                 chartDate.setFullYear(chartDate.getFullYear() + (offset * 5));
+            }
+            updateChartHeader(); 
+            renderCharts();
+        }
+
+        function getAggregatedData(s, e) {
+            let net=0, totalIn=0, totalOut=0, c=0, w=null, t=null;
+            const cur = new Date(s);
+            while(cur <= e) {
+                const l = appData.logs[formatDate(cur)];
+                if(l) {
+                    const i = l.foods.reduce((a,b)=>a+parseInt(b.kcal),0);
+                    const o = (parseInt(l.workout.strengthKcal)||0) + (parseInt(l.workout.cardio?.kcal)||0);
+                    net += (i-o); 
+                    totalIn += i;
+                    totalOut += o;
+                    c++;
+                    if(l.stats.waist) w=l.stats.waist; if(l.stats.thigh) t=l.stats.thigh;
+                }
+                cur.setDate(cur.getDate()+1);
+            }
+            return { 
+                net: c?Math.round(net/c):0, 
+                in: c?Math.round(totalIn/c):0, 
+                out: c?Math.round(totalOut/c):0, 
+                waist: w, thigh: t 
+            };
+        }
+
+        function renderCharts() {
+            const chartIds = ['kcalChart', 'waistChart', 'thighChart'];
+            chartIds.forEach(id => {
+               const existing = Chart.getChart(id);
+               if (existing) existing.destroy();
+            });
+
+            const labels = [];
+            const dNet = [], dGoal = [], waists = [], thighs = [], dIn = [], dOut = [];
+            const dWaistGoal = [], dThighGoal = [];
+            
+            let loops = 7;
+            if (currentChartFilter === 'weekly') loops = 8;
+            if (currentChartFilter === 'monthly') loops = 6;
+            if (currentChartFilter === 'yearly') loops = 3;
+            
+            const goalW = appData.user.goals.waist;
+            const goalT = appData.user.goals.thigh;
+
+            for(let i=loops-1; i>=0; i--) {
+                let start, end, label;
+                const d = new Date(chartDate);
+                
+                if (currentChartFilter === 'daily') {
+                    d.setDate(d.getDate() - i);
+                    start = new Date(d); end = new Date(d);
+                    label = formatDate(d).substring(5);
+                } else if (currentChartFilter === 'weekly') {
+                    d.setDate(d.getDate() - (i*7));
+                    end = new Date(d); 
+                    start = new Date(d); start.setDate(start.getDate()-6);
+                    label = formatDate(start).substring(5);
+                } else if (currentChartFilter === 'monthly') {
+                    d.setDate(1); d.setMonth(d.getMonth() - i);
+                    start = new Date(d);
+                    end = new Date(d); end.setMonth(end.getMonth()+1); end.setDate(0);
+                    label = d.toLocaleString('default',{month:'short'});
+                } else {
+                    d.setFullYear(d.getFullYear() - i);
+                    start = new Date(d.getFullYear(), 0, 1);
+                    end = new Date(d.getFullYear(), 11, 31);
+                    label = d.getFullYear();
+                }
+
+                const agg = getAggregatedData(start, end);
+                dNet.push(agg.net);
+                dIn.push(agg.in);
+                dOut.push(agg.out);
+                dGoal.push(appData.user.goals.kcal);
+                waists.push(agg.waist);
+                thighs.push(agg.thigh);
+                dWaistGoal.push(goalW);
+                dThighGoal.push(goalT);
+                labels.push(label);
+            }
+
+            const cvsKcal = document.getElementById('kcalChart');
+            if(cvsKcal) {
+                chartInstance.kcal = new Chart(cvsKcal.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { type: 'line', label: 'Goal', data: dGoal, borderColor: '#10b981', borderDash:[5,5], radius:0, order: 0 },
+                            { type: 'line', label: 'Net', data: dNet, borderColor: '#3b82f6', tension:0.3, radius:3, order: 1 },
+                            { label: 'In', data: dIn, backgroundColor: '#fbbf24', order: 2 },
+                            { label: 'Out', data: dOut, backgroundColor: '#f43f5e', order: 3 }
+                        ]
+                    },
+                    options: { responsive: true, scales: { x: { stacked: false }, y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+                });
+            }
+
+            const cvsWaist = document.getElementById('waistChart');
+            if(cvsWaist) {
+                chartInstance.waist = new Chart(cvsWaist.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Target', data: dWaistGoal, borderColor: '#10b981', borderDash:[5,5], radius:0 },
+                            { label: 'Waist', data: waists, borderColor: '#8b5cf6', spanGaps: true }
+                        ]
+                    },
+                    options: { spanGaps: true }
+                });
+            }
+
+            const cvsThigh = document.getElementById('thighChart');
+            if(cvsThigh) {
+                chartInstance.thigh = new Chart(cvsThigh.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Target', data: dThighGoal, borderColor: '#10b981', borderDash:[5,5], radius:0 },
+                            { label: 'Thigh', data: thighs, borderColor: '#3b82f6', spanGaps: true }
+                        ]
+                    },
+                    options: { spanGaps: true }
+                });
+            }
+        }
+
+        let CONFIG = {
+            phases: [
+                { id: 'p1', title: 'Detox', start: '2025-11-01', end: '2025-11-30', desc: 'Low Sodium', details: "Focus on reducing water retention. No added salt. Drink 3L water." },
+                { id: 'p2', title: 'Sculpt', start: '2025-12-01', end: '2025-12-31', desc: 'Carb Cycling', details: "High carb on leg days, low carb on rest days. Heavy glute focus." },
+                { id: 'p3', title: 'Final', start: '2026-01-01', end: '2026-01-31', desc: 'Deficit', details: "Aggressive cut. Maximize NEAT. Steps > 12k daily." }
+            ],
+            lang: 'en'
+        };
+
+        const TEXT = {
+            en: {
+                home_title: "Welcome Back",
+                home_today_status: "Today's Balance",
+                home_intake: "In",
+                home_burned: "Out",
+                nav_home: "Home", nav_diet: "Diet", nav_gym: "Gym", nav_analysis: "Analysis", nav_settings: "Settings",
+                diet_card_title: "Calories",
+                diet_record_title: "Add Food",
+                btn_search: "Smart Search",
+                label_target: "Target",
+                label_waist: "Waist",
+                label_thigh: "Thigh",
+                label_latest: "Latest",
+                label_logging_for: "Logging For",
+                diet_quick_add: "Quick Add",
+                btn_edit: "Edit",
+                diet_todays_log: "History",
+                strength_title: "Strength",
+                cardio_title: "Cardio",
+                label_reaction: "Reaction",
+                label_mins: "min",
+                label_foam_roll: "Foam Rolling",
+                label_important: "(Must!)",
+                tab_smart_log: "Log",
+                tab_guide: "Guide",
+                btn_add_exercise: "Add Move",
+                select_routine: "Select Routine",
+                settings_title: "Goal Settings",
+                analysis_balance: "Energy Balance",
+                analysis_waist: "Waist Trend",
+                analysis_thigh: "Thigh Trend",
+                filter_all: "All", filter_breakfast: "Breakfast", filter_lunch: "Lunch", filter_dinner: "Dinner",
+                filter_daily: "Daily", filter_weekly: "Weekly", filter_monthly: "Monthly", filter_yearly: "Yearly"
+            },
+            zh: {
+                home_title: "歡迎回來",
+                home_today_status: "今日平衡",
+                home_intake: "攝入",
+                home_burned: "消耗",
+                nav_home: "首頁", nav_diet: "飲食", nav_gym: "運動", nav_analysis: "分析", nav_settings: "設定",
+                diet_card_title: "卡路里",
+                diet_record_title: "記錄飲食",
+                btn_search: "智能搜索",
+                label_target: "目標",
+                label_waist: "腰圍",
+                label_thigh: "大腿",
+                label_latest: "最新",
+                label_logging_for: "記錄日期",
+                diet_quick_add: "快速添加",
+                btn_edit: "編輯",
+                diet_todays_log: "今日記錄",
+                strength_title: "力量訓練",
+                cardio_title: "有氧運動",
+                label_reaction: "體感",
+                label_mins: "分鐘",
+                label_foam_roll: "滾筒放鬆",
+                label_important: "(必須!)",
+                tab_smart_log: "記錄",
+                tab_guide: "指南",
+                btn_add_exercise: "新增動作",
+                select_routine: "選擇課表",
+                settings_title: "目標設定",
+                analysis_balance: "能量平衡",
+                analysis_waist: "腰圍趨勢",
+                analysis_thigh: "大腿趨勢",
+                filter_all: "全部", filter_breakfast: "早餐", filter_lunch: "午餐", filter_dinner: "晚餐",
+                filter_daily: "日", filter_weekly: "周", filter_monthly: "月", filter_yearly: "年"
+            }
+        };
+
+        // --- DATA ---
+        let appData = {
+            logs: {
+                "2025-11-20": { foods: [{name:"Dinner",kcal:650},{name:"Thai Pork Rice",kcal:650}], workout: {strengthKcal:0, type:"Rest"}, stats: {} },
+                "2025-11-21": { foods: [{name:"Dinner",kcal:1200},{name:"Brunch",kcal:600}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:85, thigh:60} },
+                "2025-11-22": { foods: [{name:"Dinner",kcal:550},{name:"Snack",kcal:290},{name:"Brunch",kcal:450}], workout: {strengthKcal:0, cardio:{min:25, kcal:275, feeling:"rpe_4"}, type:"Rest"}, stats: {waist:85, thigh:60} },
+                "2025-11-23": { foods: [{name:"Poke bowl",kcal:750},{name:"豆漿",kcal:50},{name:"牛油果",kcal:320},{name:"辣椒醬",kcal:12},{name:"Beef ball",kcal:50},{name:"Boiled Egg",kcal:70},{name:"Udon",kcal:260}], workout: {strengthKcal:232, cardio:{min:25, kcal:275, feeling:"rpe_4"}, type:"Back", exercises:[{name:"寬握下拉",weight:"20kg",sets:4,reps:12},{name:"坐姿划船",weight:"20kg",sets:4,reps:12},{name:"直臂下壓",weight:"7.8kg",sets:4,reps:12},{name:"面拉",weight:"11.8kg",sets:4,reps:12}]}, stats: {waist:85, thigh:60} },
+                "2025-11-24": { foods: [{name:"莧菜",kcal:16},{name:"豉油雞胸",kcal:250},{name:"白飯 (半碗)",kcal:100},{name:"椰子花膠雞湯",kcal:182},{name:"Poke bowl",kcal:700},{name:"烚蛋",kcal:70}], workout: {strengthKcal:306, type:"Legs", exercises:[{name:"啞鈴硬舉",weight:"10kg",sets:4,reps:12},{name:"臀推/橋式",weight:"12kg",sets:4,reps:12},{name:"後弓步",weight:"5kg",sets:3,reps:12},{name:"側臥抬腿",weight:"0kg",sets:3,reps:15},{name:"羅馬椅練臀",weight:"10kg",sets:3,reps:12}]}, stats: {waist:86.5, thigh:60} },
+                "2025-11-25": { foods: [{name:"火煱牛肉",kcal:395},{name:"蕃茄湯底蔬菜",kcal:100},{name:"白飯 (半碗)",kcal:100},{name:"白飯 (半碗)",kcal:100},{name:"白飯 (半碗)",kcal:100},{name:"Pret Beijing duck wrap",kcal:444},{name:"豆奶100ml",kcal:54},{name:"細烚蕃薯",kcal:80}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:82.5, thigh:59} },
+                "2025-11-26": { foods: [{name:"白飯 (半碗)",kcal:100},{name:"viet beef pho",kcal:450},{name:"香鍋雞",kcal:170},{name:"黑醋排骨",kcal:338},{name:"烚蛋",kcal:70}], workout: {strengthKcal:188, type:"Chest", cardio:{min:33, kcal:281, feeling:"rpe_3"}, exercises:[{name:"啞鈴推胸",weight:"8kg",sets:4,reps:12},{name:"上斜飛鳥",weight:"5kg",sets:4,reps:12},{name:"側平舉",weight:"3kg",sets:4,reps:12},{name:"過頭三頭肌伸展",weight:"5kg",sets:4,reps:12}]}, stats: {waist:85, thigh:60} },
+                "2025-11-27": { foods: [{name:"放題",kcal:1550},{name:"Boiled Egg",kcal:70},{name:"小零食",kcal:80},{name:"魚柳包走醬",kcal:272},{name:"Milk (40g)",kcal:17},{name:"Banana (100g)",kcal:89}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:85, thigh:59.5} },
+                "2025-11-28": { foods: [{name:"打拋豆角豬肉",kcal:400},{name:"白切雞",kcal:300},{name:"Rice (Half bowl)",kcal:100},{name:"7-11瑞士雞髀去皮",kcal:132},{name:"蜜糖",kcal:43},{name:"Soy milk (150g)",kcal:63},{name:"黃心番薯",kcal:121},{name:"Bagel",kcal:85}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:85, thigh:59.5} },
+                "2025-11-29": { foods: [{name:"千張",kcal:43},{name:"牛丸",kcal:60},{name:"火鍋肥牛",kcal:600},{name:"士多啤梨",kcal:100},{name:"煎釀青椒",kcal:57},{name:"叉燒腸一條半",kcal:150},{name:"菜苗餃兩隻",kcal:80}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:86, thigh:60} },
+                "2025-11-30": { foods: [{name:"無糖豆漿 (100g)",kcal:52},{name:"香蕉",kcal:110},{name:"提子",kcal:60},{name:"排骨 蕃茄炒蛋 千張 生菜",kcal:250},{name:"蒸魚",kcal:160},{name:"Rice (Half bowl)",kcal:100},{name:"Rice (Half bowl)",kcal:100},{name:"皺紋腸粉",kcal:500}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:90, thigh:60} },
+                "2025-12-01": { foods: [{name:"豉油雞1/4隻去皮",kcal:400},{name:"Rice (Half bowl)",kcal:100},{name:"Rice (Half bowl)",kcal:100},{name:"椰奶",kcal:185},{name:"雞胸",kcal:104},{name:"冬陰功金邊粉",kcal:340},{name:"牛奶",kcal:60}], workout: {strengthKcal:232, type:"Back", cardio:{min:32, kcal:208, feeling:"rpe_2"}, exercises:[{name:"寬握下拉",weight:"20kg",sets:4,reps:12},{name:"坐姿划船",weight:"20kg",sets:4,reps:12},{name:"直臂下壓",weight:"7.8kg",sets:4,reps:12},{name:"面拉",weight:"11.8kg",sets:4,reps:12}]}, stats: {waist:91, thigh:60} },
+                "2025-12-02": { foods: [{name:"煎蛋",kcal:150},{name:"Thai Pork Rice (Clean)",kcal:650},{name:"Nut cake",kcal:450},{name:"Banana (100g)",kcal:89}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:86, thigh:60} },
+                "2025-12-03": { foods: [{name:"石斛雞湯",kcal:140},{name:"肉碎蒸水蛋",kcal:180},{name:"Rice (Half bowl)",kcal:100},{name:"奶綠少糖",kcal:400},{name:"滷水蛋",kcal:171},{name:"蔥油拌麵",kcal:400},{name:"Blueberry (20g)",kcal:11},{name:"Boiled Egg",kcal:70}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:86, thigh:58} },
+                "2025-12-04": { foods: [{name:"乳酪雪糕",kcal:180},{name:"Rice (Half bowl)",kcal:100},{name:"薯仔炆雞",kcal:267},{name:"朱古力心太軟",kcal:520},{name:"Boiled Egg",kcal:70},{name:"花雕雞髀去皮",kcal:127}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:86, thigh:59} },
+                "2025-12-05": { foods: [{name:"Soy milk (100g)",kcal:42},{name:"生菜",kcal:15},{name:"鹽焗雞",kcal:300},{name:"Rice (Half bowl)",kcal:100},{name:"Thai Pork Rice (Clean)",kcal:650},{name:"Boiled Egg",kcal:70}], workout: {strengthKcal:188, type:"Chest", cardio:{min:35, kcal:228, feeling:"rpe_2"}, exercises:[{name:"啞鈴推胸",weight:"7.5kg",sets:4,reps:12},{name:"上斜飛鳥",weight:"2.5kg",sets:4,reps:12},{name:"側平舉",weight:"7.5kg",sets:4,reps:12},{name:"過頭三頭肌伸展",weight:"7.5kg",sets:4,reps:12}]}, stats: {waist:86, thigh:59} },
+                "2025-12-06": { foods: [{name:"焙茶巴斯克蛋糕",kcal:300},{name:"雞蛋布甸",kcal:120},{name:"Scott egg (100g)",kcal:200},{name:"Carbonara",kcal:580},{name:"Tiramisu",kcal:350},{name:"Soy milk (100g)",kcal:42},{name:"黃心番薯",kcal:130}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:88, thigh:58} },
+                "2025-12-07": { foods: [{name:"排骨3舊",kcal:290},{name:"辣椒炒娃娃菜",kcal:300},{name:"Rice (Half bowl)",kcal:100},{name:"燒賣兩粒",kcal:60},{name:"沙嗲牛麵",kcal:350},{name:"半個菠蘿包",kcal:325},{name:"半個酥皮蛋撻",kcal:100}], workout: {strengthKcal:252, type:"Legs", exercises:[{name:"啞鈴硬舉",weight:"6kg",sets:4,reps:12},{name:"臀推/橋式",weight:"10kg",sets:4,reps:12},{name:"後弓步",weight:"6kg",sets:3,reps:12},{name:"側臥抬腿",weight:"0kg",sets:3,reps:15}]}, stats: {waist:86, thigh:59} },
+                "2025-12-08": { foods: [{name:"Soy milk (200g)",kcal:84},{name:"辣娃娃菜",kcal:50},{name:"琵琶鴨",kcal:381},{name:"Rice (Half bowl)",kcal:100},{name:"板燒雞腿包走醬",kcal:330},{name:"Iceland isey skyr low sugar yogurt",kcal:79},{name:"Boiled Egg",kcal:70}], workout: {strengthKcal:232, type:"Back", cardio:{min:28, kcal:182, feeling:"rpe_2"}, exercises:[{name:"寬握下拉",weight:"20kg",sets:4,reps:12},{name:"坐姿划船",weight:"20kg",sets:4,reps:12},{name:"直臂下壓",weight:"7.8kg",sets:4,reps:12},{name:"面拉",weight:"11.8kg",sets:4,reps:12}]}, stats: {waist:85, thigh:59} },
+                "2025-12-09": { foods: [{name:"三文魚明太子壽司",kcal:174},{name:"吞拿魚軍艦",kcal:120},{name:"鰻魚壽司",kcal:130},{name:"魚裙邊壽司",kcal:130},{name:"炸蝦牛油果卷",kcal:92},{name:"三文魚壽司",kcal:53},{name:"玉子壽司",kcal:75},{name:"菊花蜜",kcal:50},{name:"姜黃烤雞飯",kcal:550},{name:"阿華田餅",kcal:73}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:89, thigh:59} },
+                "2025-12-10": { foods: [{name:"烏冬",kcal:50},{name:"温泉蛋",kcal:60},{name:"美珍香豬肉干",kcal:70},{name:"Boiled Egg",kcal:70},{name:"龍蝦沙律壽司",kcal:50},{name:"油甘魚壽司",kcal:40},{name:"甘蝦壽司",kcal:40},{name:"呑拿魚軍艦",kcal:40},{name:"帆立貝壽司",kcal:42},{name:"玉子壽司",kcal:75},{name:"左口魚裙邊壽司",kcal:60},{name:"三文魚籽壽司",kcal:40},{name:"兩件三文魚壽司",kcal:110},{name:"蒸魚 (15g)",kcal:140},{name:"Rice (Half bowl)",kcal:100},{name:"9件沙姜雞",kcal:500},{name:"Banana (100g)",kcal:89}], workout: {strengthKcal:188, type:"Chest", cardio:{min:33, kcal:215, feeling:"rpe_2"}, exercises:[{name:"啞鈴推胸",weight:"5kg",sets:4,reps:12},{name:"上斜飛鳥",weight:"5kg",sets:4,reps:12},{name:"側平舉",weight:"3kg",sets:4,reps:12},{name:"過頭三頭肌伸展",weight:"5kg",sets:4,reps:12}]}, stats: {waist:89, thigh:59.5} },
+                "2025-12-11": { foods: [{name:"忌廉蘑菇煙肉闊條麵",kcal:710},{name:"Boiled Egg",kcal:70},{name:"豉油雞叉燒飯",kcal:600}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:90, thigh:58} },
+                "2025-12-12": { foods: [{name:"雞絲粉卷",kcal:192},{name:"鵪鶉蛋燒賣",kcal:250},{name:"Rice (Half bowl)",kcal:100},{name:"豉油雞",kcal:300},{name:"腐乳炒通菜",kcal:120},{name:"半個水晶梨",kcal:30},{name:"一條肉鬆蛋捲",kcal:150}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:90, thigh:58} },
+                "2025-12-13": { foods: [{name:"菠菜奄列蛋",kcal:250},{name:"越南豬肉米紙卷",kcal:260},{name:"椰青",kcal:150},{name:"豬肉串燒",kcal:150},{name:"打拋鴨肉炒飯",kcal:500},{name:"冬陰功",kcal:60}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:90, thigh:58} },
+                "2025-12-14": { foods: [{name:"thai fry noodle",kcal:300},{name:"thai fried chicken wings",kcal:160},{name:"thai porl boat noodle",kcal:450},{name:"2 cups of cocktails",kcal:600},{name:"pork ball",kcal:80}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:90, thigh:58} },
+                "2025-12-15": { foods: [{name:"matcha coconut water",kcal:70},{name:"thai milktea smoothies",kcal:400},{name:"thai chicken rice",kcal:0},{name:"banoffee",kcal:185},{name:"thai dong yum mama noodle",kcal:300},{name:"grill pork neck",kcal:190},{name:"durian",kcal:100},{name:"thai banana pancake",kcal:150}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:56, thigh:58} },
+                "2025-12-16": { foods: [{name:"thai basil fried pork rice with fired egg",kcal:550},{name:"durian",kcal:100},{name:"thai milktea smoothies",kcal:400},{name:"thai chicken rice",kcal:500}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:86, thigh:58} },
+                "2025-12-17": { foods: [{name:"ham omelette",kcal:250},{name:"hong kong beef noodle",kcal:450},{name:"steam chicken",kcal:180},{name:"Rice (Half bowl)",kcal:100}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:57, thigh:58} },
+                "2025-12-18": { foods: [{name:"Boiled Egg",kcal:70},{name:"seaweed",kcal:25},{name:"green milktea less sugar",kcal:150},{name:"牛肚牛腩粗麵",kcal:450}], workout: {strengthKcal:0, type:"Rest"}, stats: {waist:87, thigh:58} }
+            }, 
+            quickFoods: [
+                {id: 1, name: 'Egg (Boiled)', kcal: 70, type: 'breakfast'},
+                {id: 2, name: 'Oatmeal', kcal: 150, type: 'breakfast'},
+                {id: 3, name: 'Chicken Breast (100g)', kcal: 165, type: 'lunch'},
+                {id: 4, name: 'Rice (Small)', kcal: 130, type: 'lunch'},
+                {id: 5, name: 'Protein Shake', kcal: 120, type: 'all'}
+            ],
+            routines: [
+                { 
+                    name: "Legs", 
+                    exercises: [
+                        { name: "啞鈴硬舉", weight: "10kg", sets: 4, reps: "10" },
+                        { name: "臀推/橋式", weight: "12kg", sets: 4, reps: "12" },
+                        { name: "後弓步", weight: "5kg", sets: 3, reps: "12" },
+                        { name: "側臥抬腿", weight: "0kg", sets: 3, reps: "15" },
+                        { name: "羅馬椅練臀", weight: "10kg", sets: 3, reps: "12" }
+                    ]
+                },
+                { 
+                    name: "Back", 
+                    exercises: [
+                        { name: "寬握下拉", weight: "20kg", sets: 4, reps: "12" },
+                        { name: "坐姿划船", weight: "20kg", sets: 4, reps: "12" },
+                        { name: "直臂下壓", weight: "7.8kg", sets: 4, reps: "12" },
+                        { name: "面拉", weight: "11.8kg", sets: 4, reps: "12" }
+                    ]
+                },
+                { 
+                    name: "Chest", 
+                    exercises: [
+                        { name: "啞鈴推胸", weight: "8kg", sets: 4, reps: "12" },
+                        { name: "上斜飛鳥", weight: "5kg", sets: 4, reps: "12" },
+                        { name: "側平舉", weight: "3kg", sets: 4, reps: "12" },
+                        { name: "過頭三頭肌伸展", weight: "5kg", sets: 4, reps: "12" }
+                    ]
+                },
+                { name: "Rest", exercises: [] }
+            ],
+            user: { 
+                goals: { kcal: 1350, waist: 84.5, thigh: 58 },
+                currentPhase: 1 
+            }
+        };
+        
+        let currentDate = new Date();
+        let chartDate = new Date(); 
+        let currentChartFilter = 'daily';
+        let chartInstance = {};
+        let activeTimer = null;
+
+        // --- CORE FUNCTIONS FIRST TO AVOID HOISTING ISSUES ---
+        function formatDate(d) { 
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        function getDayData(s) { 
+            if(!appData.logs[s]) appData.logs[s] = {foods:[], workout:{strengthKcal:0, cardio:{}, exercises:[]}, stats:{}}; 
+            return appData.logs[s]; 
+        }
+
+        // --- RENDER HELPERS ---
+        function renderPhaseCard() {
+            const container = document.getElementById('phase-card-container');
+            if(!container) return;
+            
+            const pIdx = (appData.user.currentPhase || 1) - 1;
+            const phase = CONFIG.phases[pIdx] || CONFIG.phases[0];
+            
+            const start = new Date(phase.start);
+            const now = new Date();
+            const diffTime = Math.abs(now - start);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            const totalDays = 30; 
+            const progress = Math.min(100, Math.round((diffDays / totalDays) * 100));
+
+            container.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <span class="text-[10px] font-bold text-purple-500 bg-purple-50 px-2 py-1 rounded-full uppercase tracking-wide">Current Phase</span>
+                        <h2 class="text-2xl font-black text-slate-800 mt-1">${phase.title}</h2>
+                        <p class="text-xs text-slate-500 font-medium">${phase.desc}</p>
+                    </div>
+                    <div class="text-right">
+                         <div class="text-2xl font-black text-purple-500">Day ${diffDays}</div>
+                         <div class="text-[10px] text-slate-400 font-bold uppercase">of ${totalDays}</div>
+                    </div>
+                </div>
+                <div class="w-full bg-slate-100 h-1.5 rounded-full mt-2 mb-1 overflow-hidden">
+                     <div class="h-full bg-purple-400 rounded-full" style="width: ${progress}%"></div>
+                </div>
+                <div class="phase-details" id="phase-details-content">
+                    <p class="text-xs text-slate-600 mt-2 border-t border-purple-100 pt-2"><strong>Focus:</strong> ${phase.details}</p>
+                </div>
+            `;
+        }
+
+        function updateTimeline() {
+             [1,2,3].forEach(i => {
+                 const node = document.getElementById(`node-p${i}`);
+                 const txt = document.getElementById(`timeline-p${i}`);
+                 if(node) node.className = 'timeline-node inactive';
+                 if(txt) txt.style.opacity = '0.5';
+             });
+             const cur = appData.user.currentPhase || 1;
+             const activeNode = document.getElementById(`node-p${cur}`);
+             const activeTxt = document.getElementById(`timeline-p${cur}`);
+             if(activeNode) activeNode.className = 'timeline-node active';
+             if(activeTxt) activeTxt.style.opacity = '1';
+        }
+
+        function togglePhaseDetails() {
+            document.getElementById('phase-card-container').classList.toggle('active');
+        }
+
+        function renderRoutineOptions() {
+            const sel = document.getElementById('select-workout-day');
+            if(!sel) return;
+            sel.innerHTML = `<option value="">${TEXT[CONFIG.lang].select_routine}</option>`;
+            appData.routines.forEach((r, i) => {
+                sel.innerHTML += `<option value="${i}">${r.name}</option>`;
+            });
+        }
+
+        function renderQuickFoods(f='all') {
+            const g = document.getElementById('quick-food-grid'); 
+            if(!g) return;
+            g.innerHTML='';
+            appData.quickFoods.forEach(i => {
+                if(f==='all'||i.type===f||i.type==='all') g.innerHTML += `<button onclick="addQuickFood(${i.id})" class="bg-white p-2 rounded-xl border border-slate-100 shadow-sm text-left"><p class="text-[10px] font-bold truncate">${i.name}</p><p class="text-[9px] text-slate-400">${i.kcal} kcal</p></button>`;
+            });
+        }
+
+        function renderGuide() {
+            const container = document.getElementById('guide-container');
+            if(!container) return;
+            container.innerHTML = "";
+            
+            appData.routines.forEach(routine => {
+                if(routine.name === "Rest") return;
+                let html = `<div class="mb-4"><h3 class="font-bold text-slate-700 mb-2 border-b pb-1">${routine.name}</h3><ul class="space-y-2">`;
+                routine.exercises.forEach(ex => {
+                    html += `
+                    <li class="flex justify-between items-center bg-white p-2 rounded-lg shadow-sm">
+                        <div>
+                            <p class="font-bold text-xs">${ex.name}</p>
+                            <p class="text-[10px] text-slate-400">${ex.weight} x ${ex.sets} sets x ${ex.reps} reps</p>
+                        </div>
+                        <button onclick="openYoutube('${ex.name}')" class="text-red-500 bg-red-50 px-2 py-1 rounded text-[10px] font-bold hover:bg-red-100 transition"><i class="fab fa-youtube mr-1"></i>Watch</button>
+                    </li>`;
+                });
+                html += `</ul></div>`;
+                container.innerHTML += html;
+            });
+        }
+
+        function saveWorkoutData(calculatedCardioBurn) {
+            const dateStr = formatDate(currentDate);
+            const data = getDayData(dateStr);
+            
+            const strInput = document.getElementById('input-strength-kcal');
+            if(strInput) data.workout.strengthKcal = strInput.value; 
+            
+            const foam = document.getElementById('check-foam-roll');
+            if(foam) data.workout.foamRoll = foam.checked;
+            
+            const minInput = document.getElementById('input-cardio-min');
+            const hrInput = document.getElementById('input-cardio-hr');
+            const feelInput = document.getElementById('input-cardio-feeling');
+            const disp = document.getElementById('cardio-kcal-display');
+
+            if(minInput && hrInput && feelInput) {
+                let burn = calculatedCardioBurn;
+                if (burn === undefined && disp) {
+                     burn = parseInt(disp.innerText.replace(/\D/g,'')) || 0;
+                }
+
+                data.workout.cardio = {
+                    min: minInput.value,
+                    hr: hrInput.value,
+                    feeling: feelInput.value,
+                    kcal: burn
+                };
+            }
+            saveData();
+            updateUI(); // Trigger UI refresh to update home balance
+        }
+
+        function calcWorkoutKcal(shouldSave = true) {
+            const elMin = document.getElementById('input-cardio-min');
+            const elHr = document.getElementById('input-cardio-hr');
+            const elStr = document.getElementById('input-strength-kcal');
+            
+            if(!elMin || !elHr || !elStr) return;
+
+            const min = parseInt(elMin.value) || 0;
+            const hr = parseInt(elHr.value) || 0;
+            const strength = parseInt(elStr.value) || 0;
+            
+            // Simple formula: (Time x HR x 0.014) approx
+            let cardioBurn = 0;
+            if (min > 0 && hr > 0) {
+                cardioBurn = Math.floor(min * hr * 0.07); 
+            } else if (min > 0) {
+                cardioBurn = min * 5; 
+            }
+            
+            const disp = document.getElementById('cardio-kcal-display');
+            if(disp) disp.innerText = `Est: ${cardioBurn} kcal`;
+            
+            if(shouldSave) saveWorkoutData(cardioBurn);
+        }
+
+        // --- MAIN UI UPDATE ---
+        function updateUI() {
+            try {
+                const dateStr = formatDate(currentDate);
+                const data = getDayData(dateStr);
+                const isToday = dateStr === formatDate(new Date());
+
+                const uGoals = appData.user.goals;
+                if(document.getElementById('header-target-val')) document.getElementById('header-target-val').innerText = `${uGoals.kcal}kcal | W<${uGoals.waist} | T<${uGoals.thigh}`;
+                if(document.getElementById('header-date-val')) document.getElementById('header-date-val').innerText = dateStr;
+                if(document.getElementById('home-date-display')) document.getElementById('home-date-display').innerText = isToday ? TEXT[CONFIG.lang].diet_todays_log || "Today" : dateStr;
+                
+                if(document.getElementById('diet-date-display')) document.getElementById('diet-date-display').innerText = isToday ? "Today" : dateStr.substring(5);
+                if(document.getElementById('workout-date-display')) document.getElementById('workout-date-display').innerText = isToday ? "Today" : dateStr.substring(5);
+
+                const totalIn = data.foods.reduce((sum, item) => sum + parseInt(item.kcal), 0);
+                const totalOut = (parseInt(data.workout.strengthKcal) || 0) + (parseInt(data.workout.cardio?.kcal) || 0);
+                
+                if(document.getElementById('home-kcal-val')) document.getElementById('home-kcal-val').innerText = totalIn;
+                if(document.getElementById('home-goal-val')) document.getElementById('home-goal-val').innerText = uGoals.kcal;
+                if(document.getElementById('home-burn-val')) document.getElementById('home-burn-val').innerText = totalOut;
+                if(document.getElementById('display-total')) document.getElementById('display-total').innerText = totalIn;
+
+                const pct = Math.min(100, Math.round((totalIn / uGoals.kcal) * 100));
+                const circle = document.getElementById('circle-progress');
+                if (circle) {
+                    const circumference = 226;
+                    const offset = circumference - (pct / 100) * circumference;
+                    circle.style.strokeDashoffset = offset;
+                }
+                if(document.getElementById('circle-text')) document.getElementById('circle-text').innerText = pct + '%';
+                
+                const rem = uGoals.kcal - totalIn + totalOut;
+                if(document.getElementById('home-remaining-text')) document.getElementById('home-remaining-text').innerText = `${rem} kcal remaining to maintain deficit`;
+                if(document.getElementById('remaining-text')) document.getElementById('remaining-text').innerText = `${uGoals.kcal - totalIn} left`;
+                if(document.getElementById('progress-bar')) document.getElementById('progress-bar').style.width = pct + "%";
+
+                if(document.getElementById('home-waist-val')) document.getElementById('home-waist-val').innerText = data.stats.waist || appData.user.waist || '--';
+                if(document.getElementById('home-thigh-val')) document.getElementById('home-thigh-val').innerText = data.stats.thigh || appData.user.thigh || '--';
+                if(document.getElementById('input-waist')) document.getElementById('input-waist').value = data.stats.waist || '';
+                if(document.getElementById('input-thigh')) document.getElementById('input-thigh').value = data.stats.thigh || '';
+
+                const foodList = document.getElementById('food-log-list');
+                if (foodList) {
+                    foodList.innerHTML = '';
+                    data.foods.forEach((food, idx) => {
+                        foodList.innerHTML += `
+                            <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                                <div><p class="text-xs font-bold text-slate-700">${food.name}</p></div><div class="flex items-center gap-3"><span class="text-xs font-black text-rose-500">${food.kcal}</span><button onclick="removeFood(${idx})" class="text-slate-300 hover:text-red-400"><i class="fas fa-times"></i></button></div>
+                            </div>`;
+                    });
+                }
+
+                const exList = document.getElementById('exercise-list-container');
+                if (exList) {
+                    exList.innerHTML = '';
+                    (data.workout.exercises || []).forEach((ex, idx) => {
+                        exList.innerHTML += `
+                        <div class="bg-white/50 p-2 rounded flex justify-between items-center text-xs">
+                            <div class="flex-1">
+                                <input type="text" value="${ex.name}" onchange="updateEx(${idx}, 'name', this.value)" class="bg-transparent font-bold w-full outline-none">
+                                <div class="flex gap-1 mt-1">
+                                    <input type="text" value="${ex.sets||''}" onchange="updateEx(${idx}, 'sets', this.value)" class="w-8 bg-white/50 text-center rounded" placeholder="S">
+                                    <input type="text" value="${ex.reps||''}" onchange="updateEx(${idx}, 'reps', this.value)" class="w-8 bg-white/50 text-center rounded" placeholder="R">
+                                    <input type="text" value="${ex.weight||''}" onchange="updateEx(${idx}, 'weight', this.value)" class="w-12 bg-white/50 text-center rounded" placeholder="kg">
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="openYoutube('${ex.name}')" class="text-red-500"><i class="fab fa-youtube"></i></button>
+                                <button onclick="removeEx(${idx})" class="text-slate-300"><i class="fas fa-times"></i></button>
+                            </div>
+                        </div>`;
+                    });
+                }
+                
+                if(document.getElementById('input-cardio-min')) document.getElementById('input-cardio-min').value = data.workout.cardio?.min || '';
+                if(document.getElementById('input-cardio-hr')) document.getElementById('input-cardio-hr').value = data.workout.cardio?.hr || '';
+                if(document.getElementById('input-strength-kcal')) document.getElementById('input-strength-kcal').value = data.workout.strengthKcal || 0;
+                if(document.getElementById('check-foam-roll')) document.getElementById('check-foam-roll').checked = data.workout.foamRoll || false;
+
+                renderPhaseCard();
+                updateTimeline();
+                renderQuickFoods();
+                calcWorkoutKcal(false);
+            } catch(e) {
+                console.error("UI Update Error", e);
+            }
+        }
+
+        window.onload = function() {
+            try {
+                loadData();
+                determineCurrentPhase();
+                checkAndFillRestDays(); 
+                renderRoutineOptions();
+                updateUI();
+                setInterval(updateTimerDisplay, 1000); 
+            } catch(e) {
+                console.error("Critical Init Error:", e);
+                document.body.insertAdjacentHTML('beforeend', '<div style="position:fixed;top:0;left:0;right:0;background:red;color:white;padding:10px;z-index:9999;">App Error (Reset Data may fix): '+e.message+'</div>');
+            }
+        };
+
+        function loadData() {
+            const saved = localStorage.getItem('slimToneData_v3');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    appData = { ...appData, ...parsed, logs: { ...appData.logs, ...(parsed.logs || {}) } };
+                    if (!appData.quickFoods) appData.quickFoods = [];
+                    if (!appData.user) appData.user = { waist: 0, thigh: 0, currentPhase: 1 };
+                } catch(e) { console.error("Data parse error", e); }
+            }
+            // Force fix specific data points if they are missing or incorrect in local storage merge
+            if(appData.logs["2025-12-15"]) appData.logs["2025-12-15"].stats.waist = 86;
+            if(appData.logs["2025-12-17"]) appData.logs["2025-12-17"].stats.waist = 87;
+
+            if(document.getElementById('header-date-val')) {
+                 document.getElementById('header-date-val').innerText = formatDate(currentDate);
+            }
+        }
+
+        function saveData() {
+            try {
+                localStorage.setItem('slimToneData_v3', JSON.stringify(appData));
+                updateUI();
+            } catch(e) {
+                console.error("Save Error", e);
+            }
+        }
+
+        function determineCurrentPhase() {
+            const now = new Date().toISOString().split('T')[0];
+            let found = 1;
+            CONFIG.phases.forEach((p, idx) => {
+                if (now >= p.start && now <= p.end) found = idx + 1;
+            });
+            appData.user.currentPhase = found;
+        }
+
+        function checkAndFillRestDays() {
+            const todayStr = formatDate(new Date());
+            const sortedDates = Object.keys(appData.logs).sort();
+            if(sortedDates.length === 0) return;
+            
+            const startDate = new Date(sortedDates[0]);
+            const endDate = new Date(todayStr); 
+            
+            for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
+                const dateStr = formatDate(d);
+                if (!appData.logs[dateStr]) {
+                    appData.logs[dateStr] = { foods: [], workout: { type: "Rest", strengthKcal: 0 }, stats: {} };
+                } else {
+                    const w = appData.logs[dateStr].workout;
+                    const hasCardio = w.cardio && w.cardio.min > 0;
+                    const hasStrength = w.exercises && w.exercises.length > 0;
+                    if (!hasCardio && !hasStrength && !w.type) {
+                        w.type = "Rest";
+                    }
+                }
+            }
+            saveData();
+        }
+
+        function changeDate(o) { currentDate.setDate(currentDate.getDate() + o); updateUI(); }
+        
+        function switchTab(t) {
+            document.querySelectorAll('[id^="content-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`content-${t}`).classList.remove('hidden');
+            document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('nav-active','text-rose-500'); el.classList.add('text-slate-400'); });
+            document.getElementById(`tab-${t}`).classList.add('nav-active');
+            if(t === 'analysis') {
+                updateChartHeader();
+                setTimeout(renderCharts, 100);
+            }
+            if(t === 'workout') {
+                const guideView = document.getElementById('view-workout-guide');
+                if(!guideView.classList.contains('hidden')) {
+                    renderGuide();
+                }
+            }
+        }
+
+        function toggleLanguage() {
+            CONFIG.lang = CONFIG.lang === 'en' ? 'zh' : 'en';
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.getAttribute('data-key');
+                if(TEXT[CONFIG.lang][key]) el.innerText = TEXT[CONFIG.lang][key];
+            });
+            renderRoutineOptions();
+            updateUI(); 
+        }
+
+        function addManualFood() {
+            const name = document.getElementById('input-name').value;
+            const kcal = document.getElementById('input-kcal').value;
+            const gram = document.getElementById('input-gram').value;
+
+            if(!name || !kcal) return alert("Name and Kcal required");
+
+            const dateStr = formatDate(currentDate);
+            getDayData(dateStr).foods.unshift({ name, kcal: parseInt(kcal), gram });
+            
+            document.getElementById('input-name').value = '';
+            document.getElementById('input-kcal').value = '';
+            document.getElementById('input-gram').value = '';
+            saveData();
+        }
+
+        function removeFood(idx) {
+            const dateStr = formatDate(currentDate);
+            getDayData(dateStr).foods.splice(idx, 1);
+            saveData();
+        }
+
+        function filterFood(type) { renderQuickFoods(type); }
+
+        function addQuickFood(id) { const i=appData.quickFoods.find(x=>x.id===id); if(i){ addFood(i.name, i.kcal); } }
+        
+        function addFood(n,k) { getDayData(formatDate(currentDate)).foods.unshift({name:n, kcal:k}); saveData(); }
+
+        function toggleQuickAddEdit() { document.getElementById('qa-add-form').classList.toggle('hidden'); }
+
+        function addNewQuickFood() { 
+            const n=document.getElementById('new-qa-name').value, k=document.getElementById('new-qa-kcal').value, t=document.getElementById('new-qa-type').value;
+            if(n&&k) { appData.quickFoods.push({id:Date.now(), name:n, kcal:parseInt(k), type:t}); saveData(); toggleQuickAddEdit(); }
+        }
+
+        function saveBodyStats() {
+            const dateStr = formatDate(currentDate);
+            const data = getDayData(dateStr);
+            const w = document.getElementById('input-waist').value;
+            const t = document.getElementById('input-thigh').value;
+            data.stats.waist = w; data.stats.thigh = t;
+            if(w) appData.user.waist = w; if(t) appData.user.thigh = t;
+            saveData();
+        }
+
+        function smartSearch() { alert("AI Search simulation: Try entering 'Banana' manually for now."); }
+
+        function toggleWorkoutView(view) {
+            const log = document.getElementById('view-workout-log');
+            const guide = document.getElementById('view-workout-guide');
+            if(log) log.classList.add('hidden');
+            if(guide) guide.classList.add('hidden');
+            const target = document.getElementById(`view-workout-${view}`);
+            if(target) target.classList.remove('hidden');
+            const btnLog = document.getElementById('btn-view-log');
+            const btnGuide = document.getElementById('btn-view-guide');
+            if(btnLog) btnLog.className = view === 'log' ? "flex-1 py-2 rounded-lg text-xs font-bold transition-all btn-active shadow-sm bg-white" : "flex-1 py-2 rounded-lg text-xs font-medium text-slate-500 transition-all hover:bg-white/50";
+            if(btnGuide) btnGuide.className = view === 'guide' ? "flex-1 py-2 rounded-lg text-xs font-bold transition-all btn-active shadow-sm bg-white" : "flex-1 py-2 rounded-lg text-xs font-medium text-slate-500 transition-all hover:bg-white/50";
+            if(view === 'guide') {
+                renderGuide();
+            }
+        }
+
+        function saveSettings() {
+            appData.user.goals.kcal = parseInt(document.getElementById('set-goal-kcal').value) || 1350;
+            appData.user.goals.waist = parseFloat(document.getElementById('set-goal-waist').value) || 84.5;
+            appData.user.goals.thigh = parseFloat(document.getElementById('set-goal-thigh').value) || 58;
+            saveData();
+            alert("Settings Saved!");
+        }
+
+        function loadWorkoutTemplate() {
+            const idx = document.getElementById('select-workout-day').value;
+            if(idx === "") return;
+            const routine = appData.routines[idx];
+            if(routine) {
+                const dateStr = formatDate(currentDate);
+                const data = getDayData(dateStr);
+                
+                if (routine.name === "Rest") {
+                    data.workout.exercises = [];
+                    data.workout.strengthKcal = 0;
+                    data.workout.type = "Rest"; 
+                    alert("Rest Day Logged. Enjoy recovery!");
+                } else {
+                    data.workout.exercises = JSON.parse(JSON.stringify(routine.exercises));
+                    data.workout.type = routine.name;
+                    let est = 0;
+                    routine.exercises.forEach(e => { est += (parseInt(e.sets) * 25); });
+                    data.workout.strengthKcal = est;
+                }
+                saveData();
+                updateUI();
+            }
+        }
+
+        function saveCurrentRoutine() {
+            const name = prompt("Name this routine (e.g., 'Glute Focus'):");
+            if(name) {
+                const dateStr = formatDate(currentDate);
+                const data = getDayData(dateStr);
+                appData.routines.push({ name: name, exercises: data.workout.exercises });
+                renderRoutineOptions();
+                saveData();
+            }
+        }
+
+        function updateCurrentRoutine() {
+             const idx = document.getElementById('select-workout-day').value;
+             if(idx === "") { alert("Please select a routine first"); return; }
+             const dateStr = formatDate(currentDate);
+             const data = getDayData(dateStr);
+             appData.routines[idx].exercises = JSON.parse(JSON.stringify(data.workout.exercises));
+             saveData();
+             alert("Routine Updated!");
+        }
+
+        function updateEx(idx, field, val) {
+            const dateStr = formatDate(currentDate);
+            getDayData(dateStr).workout.exercises[idx][field] = val;
+            calcWorkoutKcal(true);
+            saveData();
+        }
+
+        function removeEx(idx) {
+            const dateStr = formatDate(currentDate);
+            getDayData(dateStr).workout.exercises.splice(idx, 1);
+            calcWorkoutKcal(true);
+            saveData();
+        }
+
+        function openYoutube(name) {
+            window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(name + " exercise tutorial")}`, '_blank');
+        }
+
+        function updateChartHeader() {
+            const sel = document.getElementById('chart-date-select');
+            if(!sel) return;
+            sel.innerHTML = "";
+            let opts = [];
+            
+            const now = new Date();
+            if (currentChartFilter === 'daily') {
+                for(let i=0; i<30; i++) {
+                    let d = new Date(); d.setDate(now.getDate() - i);
+                    opts.push({ val: i*-1, txt: formatDate(d) });
+                }
+            } else if (currentChartFilter === 'weekly') {
+                for(let i=0; i<20; i++) {
+                    let d = new Date(); d.setDate(now.getDate() - (i*7));
+                    const ws = new Date(d); ws.setDate(ws.getDate() - 6);
+                    opts.push({ val: i*-1, txt: `${formatDate(ws).substring(5)} - ${formatDate(d).substring(5)}` });
+                }
+            } else if (currentChartFilter === 'monthly') {
+                for(let i=0; i<12; i++) {
+                    let d = new Date(); d.setMonth(now.getMonth() - i);
+                    opts.push({ val: i*-1, txt: d.toLocaleString('default',{month:'long', year:'numeric'}) });
+                }
+            } else {
+                opts.push({val:0, txt: now.getFullYear()});
+                opts.push({val:-1, txt: now.getFullYear()-1});
+            }
+            
+            opts.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.val;
+                opt.text = o.txt;
+                sel.add(opt);
+            });
+        }
+
+        function jumpToDate(val) {
+            const offset = parseInt(val);
+            const now = new Date();
+            if (currentChartFilter === 'daily') {
+                chartDate = new Date(); chartDate.setDate(now.getDate() + offset);
+            } else if (currentChartFilter === 'weekly') {
+                chartDate = new Date(); chartDate.setDate(now.getDate() + (offset*7));
+            } else if (currentChartFilter === 'monthly') {
+                chartDate = new Date(); chartDate.setMonth(now.getMonth() + offset);
+                chartDate.setMonth(chartDate.getMonth()+1); chartDate.setDate(0);
+            } else {
+                chartDate = new Date(); chartDate.setFullYear(now.getFullYear() + offset);
+            }
+            renderCharts();
+        }
+
+        function getAggregatedData(s, e) {
+            let net=0, totalIn=0, totalOut=0, c=0, w=null, t=null;
+            const cur = new Date(s);
+            while(cur <= e) {
+                const l = appData.logs[formatDate(cur)];
+                if(l) {
+                    const i = l.foods.reduce((a,b)=>a+parseInt(b.kcal),0);
+                    const o = (parseInt(l.workout.strengthKcal)||0) + (parseInt(l.workout.cardio?.kcal)||0);
+                    net += (i-o); 
+                    totalIn += i;
+                    totalOut += o;
+                    c++;
+                    if(l.stats.waist) w=l.stats.waist; if(l.stats.thigh) t=l.stats.thigh;
+                }
+                cur.setDate(cur.getDate()+1);
+            }
+            return { 
+                net: c?Math.round(net/c):0, 
+                in: c?Math.round(totalIn/c):0, 
+                out: c?Math.round(totalOut/c):0, 
+                waist: w, thigh: t 
+            };
+        }
+
+        function renderCharts() {
+            const chartIds = ['kcalChart', 'waistChart', 'thighChart'];
+            chartIds.forEach(id => {
+               const existing = Chart.getChart(id);
+               if (existing) existing.destroy();
+            });
+
+            const labels = [];
+            const dNet = [], dGoal = [], waists = [], thighs = [], dIn = [], dOut = [];
+            const dWaistGoal = [], dThighGoal = [];
+            
+            let loops = 7;
+            if (currentChartFilter === 'weekly') loops = 8;
+            if (currentChartFilter === 'monthly') loops = 6;
+            if (currentChartFilter === 'yearly') loops = 3;
+            
+            const goalW = appData.user.goals.waist;
+            const goalT = appData.user.goals.thigh;
+
+            for(let i=loops-1; i>=0; i--) {
+                let start, end, label;
+                const d = new Date(chartDate);
+                
+                if (currentChartFilter === 'daily') {
+                    d.setDate(d.getDate() - i);
+                    start = new Date(d); end = new Date(d);
+                    label = formatDate(d).substring(5);
+                } else if (currentChartFilter === 'weekly') {
+                    d.setDate(d.getDate() - (i*7));
+                    end = new Date(d); 
+                    start = new Date(d); start.setDate(start.getDate()-6);
+                    label = formatDate(start).substring(5);
+                } else if (currentChartFilter === 'monthly') {
+                    d.setDate(1); d.setMonth(d.getMonth() - i);
+                    start = new Date(d);
+                    end = new Date(d); end.setMonth(end.getMonth()+1); end.setDate(0);
+                    label = d.toLocaleString('default',{month:'short'});
+                } else {
+                    d.setFullYear(d.getFullYear() - i);
+                    start = new Date(d.getFullYear(), 0, 1);
+                    end = new Date(d.getFullYear(), 11, 31);
+                    label = d.getFullYear();
+                }
+
+                const agg = getAggregatedData(start, end);
+                dNet.push(agg.net);
+                dIn.push(agg.in);
+                dOut.push(agg.out);
+                dGoal.push(appData.user.goals.kcal);
+                waists.push(agg.waist);
+                thighs.push(agg.thigh);
+                dWaistGoal.push(goalW);
+                dThighGoal.push(goalT);
+                labels.push(label);
+            }
+
+            const cvsKcal = document.getElementById('kcalChart');
+            if(cvsKcal) {
+                chartInstance.kcal = new Chart(cvsKcal.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                type: 'line',
+                                label: 'Goal',
+                                data: dGoal,
+                                borderColor: '#10b981',
+                                borderDash: [5, 5],
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                order: 0
+                            },
+                            {
+                                type: 'line',
+                                label: 'Net',
+                                data: dNet,
+                                borderColor: '#3b82f6',
+                                backgroundColor: '#3b82f6',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                pointRadius: 3,
+                                order: 1
+                            },
+                            {
+                                type: 'bar',
+                                label: 'In',
+                                data: dIn,
+                                backgroundColor: '#fbbf24',
+                                borderRadius: 3,
+                                order: 2,
+                                barPercentage: 0.6
+                            },
+                            {
+                                type: 'bar',
+                                label: 'Out',
+                                data: dOut,
+                                backgroundColor: '#f43f5e',
+                                borderRadius: 3,
+                                order: 3,
+                                barPercentage: 0.6
+                            }
+                        ]
+                    },
+                    options: { 
+                        responsive: true, 
+                        scales: { x: { stacked: false }, y: { beginAtZero: true } },
+                        plugins: { legend: { display: false } } // Custom legend exists in HTML
+                    }
+                });
+            }
+            
+            // Waist Chart (Line)
+            const cvsWaist = document.getElementById('waistChart');
+            if(cvsWaist) {
+                chartInstance.waist = new Chart(cvsWaist.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Target', data: dWaistGoal, borderColor: '#10b981', borderDash:[5,5], radius:0 },
+                            { label: 'Waist', data: waists, borderColor: '#8b5cf6', spanGaps: true }
+                        ]
+                    },
+                    options: { spanGaps: true }
+                });
+            }
+
+            // Thigh Chart (Line) - NOW ADDED
+            const cvsThigh = document.getElementById('thighChart');
+            if(cvsThigh) {
+                chartInstance.thigh = new Chart(cvsThigh.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Target', data: dThighGoal, borderColor: '#10b981', borderDash:[5,5], radius:0 },
+                            { label: 'Thigh', data: thighs, borderColor: '#3b82f6', spanGaps: true }
+                        ]
+                    },
+                    options: { spanGaps: true }
+                });
+            }
+        }
+
+        function setChartFilter(filter) {
+            currentChartFilter = filter;
+            document.querySelectorAll('[id^="filter-"]').forEach(b => b.classList.replace('filter-active', 'filter-inactive'));
+            document.getElementById(`filter-${filter}`).classList.replace('filter-inactive', 'filter-active');
+            updateChartHeader();
+            renderCharts();
+        }
+        
+        function changeChartDate(offset) {
+            if (currentChartFilter === 'daily') {
+                 chartDate.setDate(chartDate.getDate() + (offset * 7));
+            } else if (currentChartFilter === 'weekly') {
+                 chartDate.setDate(chartDate.getDate() + (offset * 28)); 
+            } else if (currentChartFilter === 'monthly') {
+                 chartDate.setMonth(chartDate.getMonth() + (offset * 6)); 
+            } else if (currentChartFilter === 'yearly') {
+                 chartDate.setFullYear(chartDate.getFullYear() + (offset * 5));
+            }
+            updateChartHeader(); 
+            renderCharts();
+        }
+        
+        function copyFullBackup() {
+            const data = JSON.stringify(appData);
+            const textArea = document.createElement("textarea");
+            textArea.value = data;
+            textArea.style.position = "fixed"; 
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                const msg = successful ? 'Data copied to clipboard!' : 'Copy failed. Please select text and copy manually.';
+                alert(msg);
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+                alert("Copy failed. Please try again.");
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        function performRestore() {
+            const raw = document.getElementById('restore-input').value;
+            if(!raw) return;
+            try {
+                JSON.parse(raw); 
+                localStorage.setItem('slimToneData_v3', raw);
+                location.reload();
+            } catch(e) {
+                alert("Invalid Data Format");
+            }
+        }
+
+        function exportToExcel() {
+            let csv = "Date,Total In,Total Out,Waist\n";
+            Object.keys(appData.logs).sort().forEach(date => {
+                const d = appData.logs[date];
+                const intake = d.foods.reduce((a,b)=>a+parseInt(b.kcal),0);
+                const burn = (parseInt(d.workout.strengthKcal)||0) + (parseInt(d.workout.cardio?.kcal)||0);
+                csv += `${date},${intake},${burn},${d.stats.waist||''}\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'slim_data.csv';
+            a.click();
+        }
+        function openRestoreModal() {
+            document.getElementById('restore-modal').classList.add('open');
+        }
+    </script>
+</body>
+</html>
